@@ -1,0 +1,15 @@
+spec_version: 1
+name: customer_churn_env
+display_name: Customer Churn Retention Environment
+description: >
+  An RL environment where an AI agent learns to retain at-risk customers
+  by choosing optimal retention strategies across easy, medium, and hard scenarios.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+tags:
+  - customer-churn
+  - retention
+  - business
+  - openenv
