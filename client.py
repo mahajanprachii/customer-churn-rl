@@ -12,11 +12,11 @@ from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
 
-from .models import CustomerChurnAction, CustomerChurnObservation
+from .models import CustomerChurnAction, CustomerChurnObservation, CustomerChurnState
 
 
 class CustomerChurnEnv(
-    EnvClient[CustomerChurnAction, CustomerChurnObservation, State]
+    EnvClient[CustomerChurnAction, CustomerChurnObservation, CustomerChurnState]
 ):
     """
     Client for the Customer Churn Env Environment.
@@ -55,7 +55,7 @@ class CustomerChurnEnv(
             Dictionary representation suitable for JSON encoding
         """
         return {
-            "message": action.message,
+            "action_type": action.action_type,
         }
 
     def _parse_result(self, payload: Dict) -> StepResult[CustomerChurnObservation]:
@@ -70,30 +70,33 @@ class CustomerChurnEnv(
         """
         obs_data = payload.get("observation", {})
         observation = CustomerChurnObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
-            done=payload.get("done", False),
-            reward=payload.get("reward"),
+            monthly_charges=obs_data.get("monthly_charges", 0.0),
+            tenure_months=obs_data.get("tenure_months", 0),
+            complaint_count=obs_data.get("complaint_count", 0),
+            contract_type=obs_data.get("contract_type", "monthly"),
             metadata=obs_data.get("metadata", {}),
         )
 
         return StepResult(
             observation=observation,
-            reward=payload.get("reward"),
+            reward=payload.get("reward", 0.0),
             done=payload.get("done", False),
         )
 
-    def _parse_state(self, payload: Dict) -> State:
+    def _parse_state(self, payload: Dict) -> CustomerChurnState:
         """
-        Parse server response into State object.
+        Parse server response into CustomerChurnState object.
 
         Args:
             payload: JSON response from state request
 
         Returns:
-            State object with episode_id and step_count
+            CustomerChurnState object
         """
-        return State(
+        return CustomerChurnState(
             episode_id=payload.get("episode_id"),
             step_count=payload.get("step_count", 0),
+            current_step=payload.get("current_step", 0),
+            current_task=payload.get("current_task", "easy"),
+            is_done=payload.get("is_done", False),
         )
