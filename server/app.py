@@ -22,45 +22,7 @@ app = create_app(
     max_concurrent_envs=1,
 )
 
-@app.get("/tasks")
-def get_tasks():
-    return JSONResponse({
-        "tasks": [
-            {
-                "name": "easy",
-                "description": "New customer with high complaints on monthly contract",
-                "difficulty": "easy",
-                "action_schema": {"action_type": "free_upgrade | offer_discount | personal_call | do_nothing"}
-            },
-            {
-                "name": "medium",
-                "description": "Mid-tenure customer with some churn signals",
-                "difficulty": "medium",
-                "action_schema": {"action_type": "free_upgrade | offer_discount | personal_call | do_nothing"}
-            },
-            {
-                "name": "hard",
-                "description": "High value customer with many complaints",
-                "difficulty": "hard",
-                "action_schema": {"action_type": "free_upgrade | offer_discount | personal_call | do_nothing"}
-            }
-        ]
-    })
 
-@app.get("/grader")
-def get_grader():
-    return JSONResponse({
-        "grader": {
-            "easy": {"correct_action": "free_upgrade", "max_score": 1.0},
-            "medium": {"correct_action": "offer_discount", "max_score": 1.0},
-            "hard": {
-                "correct_action": "personal_call",
-                "max_score": 1.0,
-                "partial_action": "offer_discount",
-                "partial_score": 0.5
-            }
-        }
-    })
 
 @app.get("/baseline")
 def get_baseline():

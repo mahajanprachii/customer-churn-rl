@@ -2,16 +2,50 @@ from uuid import uuid4
 import random
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
+from openenv.core.rubrics.base import Rubric
 
 try:
     from ..models import CustomerChurnAction, CustomerChurnObservation, CustomerChurnState
 except ImportError:
     from models import CustomerChurnAction, CustomerChurnObservation, CustomerChurnState
 
+class TaskGrader(Rubric):
+    def __init__(self, expected_action: str, partial_action: str = None, partial_score: float = 0.0):
+        super().__init__()
+        self.expected_action = expected_action
+        self.partial_action = partial_action
+        self.partial_score = partial_score
+
+    def forward(self, action: CustomerChurnAction, observation: CustomerChurnObservation) -> float:
+        if action.action_type == self.expected_action:
+            return 1.0
+        if self.partial_action and action.action_type == self.partial_action:
+            return self.partial_score
+        return 0.0
+
+class CustomerChurnRubric(Rubric):
+    def __init__(self, env: 'CustomerChurnEnvironment'):
+        super().__init__()
+        self.env = env
+        self.easy = TaskGrader("free_upgrade")
+        self.medium = TaskGrader("offer_discount")
+        self.hard = TaskGrader("personal_call", "offer_discount", 0.5)
+
+    def forward(self, action: CustomerChurnAction, observation: CustomerChurnObservation) -> float:
+        task = self.env._task_list[self.env._task_index]
+        if task == "easy":
+            return self.easy(action, observation)
+        elif task == "medium":
+            return self.medium(action, observation)
+        elif task == "hard":
+            return self.hard(action, observation)
+        return 0.0
+
 class CustomerChurnEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
 
     def __init__(self):
+        super().__init__(rubric=CustomerChurnRubric(self))
         self._state = CustomerChurnState(
             episode_id=str(uuid4()),
             step_count=0,
@@ -51,15 +85,8 @@ class CustomerChurnEnvironment(Environment):
                 reward=0.0
             )
 
-    def _grade(self, task: str, action: str) -> float:
-        if task == "easy":
-            return 1.0 if action == "free_upgrade" else 0.0
-        elif task == "medium":
-            return 1.0 if action == "offer_discount" else 0.0
-        else:
-            return 1.0 if action == "personal_call" else (0.5 if action == "offer_discount" else 0.0)
-
-    def reset(self) -> CustomerChurnObservation:
+    def reset(self, seed=None, episode_id=None, **kwargs) -> CustomerChurnObservation:
+        self._reset_rubric()
         self._task_index = 0
         self._state = CustomerChurnState(
             episode_id=str(uuid4()),
@@ -70,10 +97,11 @@ class CustomerChurnEnvironment(Environment):
         self._current_customer = self._generate_customer("easy")
         return self._current_customer
 
-    def step(self, action: CustomerChurnAction) -> CustomerChurnObservation:
+    def step(self, action: CustomerChurnAction, timeout_s=None, **kwargs) -> CustomerChurnObservation:
         self._state.step_count += 1
-        task = self._task_list[self._task_index]
-        reward = self._grade(task, action.action_type)
+        
+        # Calculate reward using the new Rubric logic based on current task
+        reward = self._apply_rubric(action, self._current_customer)
 
         self._task_index += 1
         is_done = self._task_index >= len(self._task_list)
@@ -85,9 +113,10 @@ class CustomerChurnEnvironment(Environment):
             next_customer = self._generate_customer(next_task)
             next_customer.reward = reward
             next_customer.done = is_done
+            self._current_customer = next_customer
             return next_customer
         else:
-            return CustomerChurnObservation(
+            final_customer = CustomerChurnObservation(
                 monthly_charges=0,
                 tenure_months=0,
                 complaint_count=0,
@@ -95,6 +124,8 @@ class CustomerChurnEnvironment(Environment):
                 done=True,
                 reward=reward
             )
+            self._current_customer = final_customer
+            return final_customer
 
     @property
     def state(self) -> State:
