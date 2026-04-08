@@ -87,14 +87,20 @@ class CustomerChurnEnvironment(Environment):
 
     def reset(self, seed=None, episode_id=None, **kwargs) -> CustomerChurnObservation:
         self._reset_rubric()
-        self._task_index = 0
+        
+        task = kwargs.get('task') or kwargs.get('task_id')
+        if task in self._task_list:
+            self._task_index = self._task_list.index(task)
+        else:
+            self._task_index = 0
+            
         self._state = CustomerChurnState(
             episode_id=str(uuid4()),
             step_count=0,
-            current_task="easy",
+            current_task=self._task_list[self._task_index],
             is_done=False
         )
-        self._current_customer = self._generate_customer("easy")
+        self._current_customer = self._generate_customer(self._state.current_task)
         return self._current_customer
 
     def step(self, action: CustomerChurnAction, timeout_s=None, **kwargs) -> CustomerChurnObservation:

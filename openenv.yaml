@@ -13,3 +13,13 @@ tags:
   - retention
   - business
   - openenv
+tasks:
+  - id: easy
+    grader: easy_grader
+    description: "New customer with high complaints on monthly contract"
+  - id: medium
+    grader: medium_grader
+    description: "Mid-tenure customer with some churn signals"
+  - id: hard
+    grader: hard_grader
+    description: "High value customer with many complaints"
